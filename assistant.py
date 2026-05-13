@@ -11,13 +11,14 @@ import re
 import unicodedata
 import speech_recognition as sr
 from faster_whisper import WhisperModel
+from tools import open_app
 
 # Configuration
 MODEL = "gemma3:4b"
 VOICE = "en-GB-SoniaNeural"
 WHISPER_MODEL = "base"  # tiny, base, small, medium — base is best balance for your hardware
 
-SYSTEM_PROMPT = """Your name is VEYDA: an advanced system that thinks with extreme clarity, depth, and precision, while also acting as a highly capable day-to-day assistant.
+SYSTEM_PROMPT = """Your name is GWEN: an advanced system that thinks with extreme clarity, depth, and precision, while also acting as a highly capable day-to-day assistant.
 
 You communicate like a sharp, efficient human — natural, direct, and composed. 
 Never refer to yourself as an AI, system, or model. 
@@ -96,13 +97,33 @@ def speak_sync(text):
     asyncio.run(speak(text))
 
 EXIT_PHRASES = [
-    "quit", "exit", "goodbye", "shut down", "shutting down",
-    "turn off", "bye", "see you", "that's all"
+    "quit", "exit", "goodbye", "good bye", "shut down", "shutting down",
+    "turn off", "bye", "see you", "that's all", "we're done",
+    "close", "stop", "power off", "go offline", "sleep"
 ]
 
 def is_exit_command(text):
     text_lower = text.lower()
     return any(phrase in text_lower for phrase in EXIT_PHRASES)
+
+OPEN_INTENTS = ["open", "launch", "start", "run", "load"]
+
+def detect_intent(text):
+    text_lower = text.lower()
+    
+    # Check if it's an open app command
+    for intent in OPEN_INTENTS:
+        if intent in text_lower:
+            # Extract app name — everything after the intent word
+            parts = text_lower.split(intent, 1)
+            if len(parts) > 1:
+                app_name = parts[1].strip()
+                # Clean common filler words
+                for filler in ["the", "my", "please", "app", "application"]:
+                    app_name = app_name.replace(filler, "").strip()
+                return "open_app", app_name
+    
+    return "chat", None
 
 def listen():
     recognizer = sr.Recognizer()
@@ -159,11 +180,11 @@ def chat(user_input):
     return assistant_message
 
 def main():
-    print(f"VEYDA online — using {MODEL}")
+    print(f"Gwen online — using {MODEL}")
     
     # Greet on startup
-    greeting = chat("Hello VEYDA, systems are online.")
-    print(f"VEYDA: {greeting}\n")
+    greeting = chat("Hello Gwen, systems are online.")
+    print(f"Gwen: {greeting}\n")
     speak_sync(clean_for_speech(greeting))
     
     while True:
@@ -175,13 +196,21 @@ def main():
         # Check for exit intent
         if is_exit_command(user_input):
             farewell = chat("Shutting down now.")
-            print(f"VEYDA: {farewell}")
+            print(f"Gwen: {farewell}")
             speak_sync(clean_for_speech(farewell))
             break
         
-        response = chat(user_input)
-        print(f"VEYDA: {response}\n")
-        speak_sync(clean_for_speech(response))
+        # Detect intent before sending to LLM
+        intent, parameter = detect_intent(user_input)
+    
+        if intent == "open_app":
+            response = open_app(parameter)
+            print(f"Gwen: {response}\n")
+            speak_sync(clean_for_speech(response))
+        else:
+            response = chat(user_input)
+            print(f"Gwen: {response}\n")
+            speak_sync(clean_for_speech(response))
 
 if __name__ == "__main__":
     main()
