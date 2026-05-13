@@ -1,43 +1,8 @@
 import subprocess
 import os
+from config import config
 
-# Map common app names to their executable paths
-APP_MAP = {
-    # Browsers
-    "chrome": r"C:\Program Files\Google\Chrome\Application\chrome.exe",
-    "firefox": r"C:\Program Files\Mozilla Firefox\firefox.exe",
-    "edge": r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
-    "opera": r"C:\Users\anton\AppData\Local\Programs\Opera GX\opera.exe",
-    
-    # Media
-    "spotify": r"C:\Users\{username}\AppData\Roaming\Spotify\Spotify.exe",
-    "vlc": r"C:\Program Files\VideoLAN\VLC\vlc.exe",
-
-    # Other apps
-    "roblox": r"C:\Users\{username}\AppData\Local\Roblox\Versions\version-bf6344c9c23446bf\RobloxPlayerBeta.exe",
-    
-    # Development
-    "vscode": r"C:\Users\{username}\AppData\Local\Programs\Microsoft VS Code\Code.exe",
-    "terminal": "wt.exe",  # Windows Terminal, already on PATH
-    
-    # System
-    "notepad": "notepad.exe",
-    "calculator": "calc.exe",
-    "explorer": "explorer.exe",
-    
-    # Communication
-    "discord": r"C:\Users\{username}\AppData\Local\Discord\Update.exe --processStart Discord.exe",
-    "whatsapp": r"C:\Users\{username}\AppData\Local\WhatsApp\WhatsApp.exe",
-}
-
-# tries multiple common Windows username env variables:
-USERNAME = (
-    os.getenv("USERNAME") or 
-    os.getenv("USER") or 
-    os.getenv("USERPROFILE", "").split("\\")[-1]
-)
-
-APP_MAP = {k: v.replace("{username}", USERNAME) for k, v in APP_MAP.items()}
+APP_MAP = config["apps"]
 
 def open_app(app_name):
     app_name = app_name.lower().strip()
@@ -47,20 +12,20 @@ def open_app(app_name):
         path = APP_MAP[app_name]
         try:
             subprocess.Popen(path)
-            return f"{app_name.capitalize()} is opening, sir."
+            return f"{app_name.capitalize()} is opening."
         except FileNotFoundError:
-            return f"I couldn't find {app_name} at the expected path, sir. You may need to update the path in my configuration."
+            return f"I couldn't find {app_name} at the expected path. You may need to update the config file."
         except Exception as e:
-            return f"Something went wrong opening {app_name}, sir. {str(e)}"
+            return f"Something went wrong opening {app_name}. {str(e)}"
     
-    # Fuzzy match — catch close names like "vs code" -> "vscode"
+    # Fuzzy match
     for key in APP_MAP:
         if key in app_name or app_name in key:
             path = APP_MAP[key]
             try:
                 subprocess.Popen(path)
-                return f"{key.capitalize()} is opening, sir."
+                return f"{key.capitalize()} is opening."
             except FileNotFoundError:
-                return f"I found a match for {key} but couldn't locate the executable, sir."
+                return f"I found a match for {key} but couldn't locate the executable."
     
-    return f"I don't have {app_name} in my app list, sir. You can add it to my configuration."
+    return f"I don't have {app_name} in my app list. You can add it to the config file."

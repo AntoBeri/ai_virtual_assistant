@@ -12,13 +12,16 @@ import unicodedata
 import speech_recognition as sr
 from faster_whisper import WhisperModel
 from tools import open_app
+from config import config
 
-# Configuration
-MODEL = "gemma3:4b"
-VOICE = "en-GB-SoniaNeural"
-WHISPER_MODEL = "base"  # tiny, base, small, medium — base is best balance for your hardware
+# Pull metadata from config
+MODEL = config["assistant"]["model"]
+VOICE = config["assistant"]["voice"]
+WHISPER_MODEL = config["assistant"]["whisper_model"]
+ASSISTANT_NAME = config["assistant"]["name"]
+EXIT_PHRASES = config["exit_phrases"]
 
-SYSTEM_PROMPT = """Your name is GWEN: an advanced system that thinks with extreme clarity, depth, and precision, while also acting as a highly capable day-to-day assistant.
+SYSTEM_PROMPT = f"""Your name is {ASSISTANT_NAME}: an advanced system that thinks with extreme clarity, depth, and precision, while also acting as a highly capable day-to-day assistant.
 
 You communicate like a sharp, efficient human — natural, direct, and composed. 
 Never refer to yourself as an AI, system, or model. 
@@ -96,12 +99,6 @@ async def speak(text):
 def speak_sync(text):
     asyncio.run(speak(text))
 
-EXIT_PHRASES = [
-    "quit", "exit", "goodbye", "good bye", "shut down", "shutting down",
-    "turn off", "bye", "see you", "that's all", "we're done",
-    "close", "stop", "power off", "go offline", "sleep"
-]
-
 def is_exit_command(text):
     text_lower = text.lower()
     return any(phrase in text_lower for phrase in EXIT_PHRASES)
@@ -129,10 +126,17 @@ def listen():
     recognizer = sr.Recognizer()
     with sr.Microphone() as source:
         print("\nListening...")
-        recognizer.adjust_for_ambient_noise(source, duration=0.5)
+        recognizer.adjust_for_ambient_noise(
+            source, 
+            duration=config["stt"]["ambient_noise_duration"]
+        )
         
         try:
-            audio = recognizer.listen(source, timeout=5, phrase_time_limit=15)
+            audio = recognizer.listen(
+                source,
+                timeout=config["stt"]["timeout"],
+                phrase_time_limit=config["stt"]["phrase_time_limit"]
+            )
             print("Processing speech...")
             
             # Use a proper temp file instead
