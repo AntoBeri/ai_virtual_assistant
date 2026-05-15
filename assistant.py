@@ -139,7 +139,7 @@ def listen():
             )
             print("Processing speech...")
             
-            # Use a proper temp file instead
+            # Use a proper temp file
             with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
                 tmp.write(audio.get_wav_data())
                 tmp_path = tmp.name
