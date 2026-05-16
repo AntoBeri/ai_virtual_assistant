@@ -11,7 +11,7 @@ import re
 import unicodedata
 import speech_recognition as sr
 from faster_whisper import WhisperModel
-from tools import open_app
+from tools import open_app, set_volume, get_volume, mute_volume, unmute_volume, set_brightness, get_brightness
 from config import config
 
 # Pull metadata from config
@@ -67,6 +67,15 @@ Never explain basics the user clearly already understands.
 Your role is to be useful, sharp, and action-oriented — not to explain yourself, but to think and assist.
 """
 
+# system intents
+VOLUME_INTENTS = ["volume", "sound", "audio"]
+BRIGHTNESS_INTENTS = ["brightness", "screen", "display"]
+MUTE_INTENTS = ["mute", "silence", "quiet"]
+UNMUTE_INTENTS = ["unmute", "sound on", "audio on"]
+
+# app intents
+OPEN_INTENTS = ["open", "launch", "start", "run", "load"]
+
 # Initialize Whisper
 print("Loading Whisper model...")
 whisper = WhisperModel(WHISPER_MODEL, device="cuda", compute_type="float16")
@@ -103,23 +112,44 @@ def is_exit_command(text):
     text_lower = text.lower()
     return any(phrase in text_lower for phrase in EXIT_PHRASES)
 
-OPEN_INTENTS = ["open", "launch", "start", "run", "load"]
+def extract_number(text):
+    """Pull a number out of a string if present"""
+    match = re.search(r'\b(\d+)\b', text)
+    return int(match.group(1)) if match else None
 
 def detect_intent(text):
     text_lower = text.lower()
     
-    # Check if it's an open app command
+    # exit
+    if is_exit_command(text_lower):
+        return "exit", None
+
+    # mute / unmute
+    if any(phrase in text_lower for phrase in UNMUTE_INTENTS):
+        return "unmute", None
+    if any(phrase in text_lower for phrase in MUTE_INTENTS):
+        return "mute", None
+
+    # volume
+    if any(word in text_lower for word in VOLUME_INTENTS):
+        number = extract_number(text_lower)
+        return "volume", number
+
+    # brightness
+    if any(word in text_lower for word in BRIGHTNESS_INTENTS):
+        number = extract_number(text_lower)
+        return "brightness", number
+
+    # app launcher
     for intent in OPEN_INTENTS:
         if intent in text_lower:
-            # Extract app name — everything after the intent word
             parts = text_lower.split(intent, 1)
             if len(parts) > 1:
                 app_name = parts[1].strip()
-                # Clean common filler words
                 for filler in ["the", "my", "please", "app", "application"]:
                     app_name = app_name.replace(filler, "").strip()
                 return "open_app", app_name
-    
+
     return "chat", None
 
 def listen():
@@ -197,17 +227,37 @@ def main():
         if not user_input:
             continue
         
-        # Check for exit intent
-        if is_exit_command(user_input):
-            farewell = chat("Shutting down now.")
-            print(f"Gwen: {farewell}")
-            speak_sync(clean_for_speech(farewell))
-            break
-        
         # Detect intent before sending to LLM
         intent, parameter = detect_intent(user_input)
     
-        if intent == "open_app":
+        if intent == "exit":
+            farewell = chat("Shutting down now.")
+            print(f"GWEN: {farewell}")
+            speak_sync(clean_for_speech(farewell))
+            break
+        elif intent == "mute":
+            response = mute_volume()
+            print(f"GWEN: {response}\n")
+            speak_sync(clean_for_speech(response))
+        elif intent == "unmute":
+            response = unmute_volume()
+            print(f"GWEN: {response}\n")
+            speak_sync(clean_for_speech(response))
+        elif intent == "volume":
+            if parameter is not None:
+                response = set_volume(parameter)
+            else:
+                response = get_volume()
+                print(f"GWEN: {response}\n")
+                speak_sync(clean_for_speech(response))
+        elif intent == "brightness":
+            if parameter is not None:
+                response = set_brightness(parameter)
+            else:
+                response = get_brightness()
+                print(f"GWEN: {response}\n")
+                speak_sync(clean_for_speech(response))
+        elif intent == "open_app":
             response = open_app(parameter)
             print(f"Gwen: {response}\n")
             speak_sync(clean_for_speech(response))
